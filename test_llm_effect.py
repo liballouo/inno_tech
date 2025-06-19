@@ -18,7 +18,9 @@ trend_elec = "上升"
 elec_pct = +3.1
 
 # =========  LLM載入 =========
-model_name = "Qwen/Qwen2-1.5B-Chat"
+# model_name = "Qwen/Qwen2-1.5B-Chat"
+# model_name = "HuggingFaceTB/SmolLM2-135M"
+model_name = "Luigi/SmolLM2-360M-Instruct-TaiwanChat"
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(

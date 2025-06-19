@@ -1,47 +1,49 @@
+# -*- coding: utf-8 -*-
+"""
+測試 LLM 產生建議效果（不進行預測，只產生建議）
+"""
+
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
-import pandas as pd
-from design_forecast_lstm import load_trained_model, predict_next_month, generate_advice
 
-# Define the paths for the trained model and data files
-model_path = "predict_lstm.pt"  # Adjust the path as necessary
-water_file_path = "./train_data/Monthly_Water_2021-2023.xlsx"
-electricity_file_path = "./train_data/Monthly_electricity_2021-2023.xlsx"
+# 你可以根據需求修改這些數值
+curr_water = 123.45  # 本月用水量 (ML)
+next_water = 120.00  # 下月預估用水量 (ML)
+trend_water = "下降"
+water_pct = -2.8
 
-# Load the trained model
-model = load_trained_model(model_path)
+curr_elec = 6789.0   # 本月用電量 (kWh)
+next_elec = 7000.0   # 下月預估用電量 (kWh)
+trend_elec = "上升"
+elec_pct = +3.1
 
-# Load the water and electricity data
-df_water = pd.read_excel(water_file_path, sheet_name="Sheet1")
-df_electricity = pd.read_excel(electricity_file_path, sheet_name="Sheet1")
+# =========  LLM載入 =========
+model_name = "Qwen/Qwen2-1.5B-Chat"
 
-# Prepare the data for water usage
-water_col = 'Total_Water(ML)'
-series_water = df_water[water_col].dropna().values
-months_water = df_water.loc[df_water[water_col].dropna().index, 'Month'].values
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    torch_dtype=torch.float16,
+    device_map="auto"
+)
 
-# Prepare the data for electricity usage
-elec_col = 'Total Electricity Consumption (kWh)'
-series_elec = df_electricity[elec_col].dropna().values
-months_elec = df_electricity.loc[df_electricity[elec_col].dropna().index, 'Month'].values
+def generate_advice(prompt, tokenizer=tokenizer, model=model, max_new_tokens=160):
+    """
+    使用小型 LLM 產生繁體中文建議。
+    """
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.9
+        )
+    advice = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return advice.strip()
 
-# Predict the next month's water and electricity usage
-next_water = predict_next_month(series_water, months_water, model_path)
-next_elec = predict_next_month(series_elec, months_elec, model_path)
-
-# Generate advice based on the predictions
-curr_water = series_water[-1]
-curr_elec = series_elec[-1]
-
-water_diff = next_water - curr_water
-elec_diff = next_elec - curr_elec
-
-water_pct = water_diff / curr_water * 100
-elec_pct = elec_diff / curr_elec * 100
-
-trend_water = "上升" if water_diff > 1e-3 else "下降" if water_diff < -1e-3 else "持平"
-trend_elec = "上升" if elec_diff > 1e-3 else "下降" if elec_diff < -1e-3 else "持平"
-
-# Prepare the prompt for LLM advice generation
+# ----------  LLM 建議 ----------
 prompt = (
     f"你是一位節能與節水顧問，請依據以下數據條列3點繁體中文建議。\n"
     f"- 本月用水 {curr_water:.2f} ML，預估下月 {next_water:.2f} ML，{trend_water} {water_pct:+.1f}%\n"
@@ -50,15 +52,17 @@ prompt = (
 )
 
 advice = generate_advice(prompt)
-
-# Output the results
-print("============ 用水 / 用電 預測概覽 ============")
-print(f"🔹 本月用水量：{curr_water:,.2f} ML")
-print(f"🔹 下月預估用水量：{next_water:,.2f} ML（{trend_water} {water_pct:+.1f}%）")
-print(f"🔹 本月用電量：{curr_elec:,.2f} kWh")
-print(f"🔹 下月預估用電量：{next_elec:,.2f} kWh（{trend_elec} {elec_pct:+.1f}%）")
-
-# Print the LLM advice
 print("\n============ 建議 ============")
 print(advice)
 print("================================")
+
+# ========== 預測部分已註解 ==========
+# # ----------  預測 ----------
+# next_water = predict_next_month(series_water, months_water, water_model_path)
+# next_elec  = predict_next_month(series_elec, months_elec, elec_model_path)
+#
+# # ----------  輸出 ----------
+# print(f"🔹 本月用水量：{series_water[-1]:,.2f} ML")
+# print(f"🔹 本月用電量：{series_elec[-1]:,.2f} kWh")
+# print(f"🔹 下個月預估用水量：{next_water:,.2f} ML")
+# print(f"🔹 下個月預估用電量：{next_elec:,.2f} kWh")

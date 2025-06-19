@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"使用設備: {device}")
 
 class EnergyDataset(Dataset):
     def __init__(self, values, months, seq_length):
@@ -139,8 +140,8 @@ def process_series_and_forecast(series, months, forecast_steps=12):
     predictions = multi_step_forecast(model, scaler, series, months, steps=forecast_steps)
     return predictions
 
-water_file_path = "Monthly_Water_2021-2023.xlsx"
-electricity_file_path = "Monthly_electricity_2021-2023.xlsx"
+water_file_path = "./train_data/Monthly_Water_2021-2023.xlsx"
+electricity_file_path = "./train_data/Monthly_electricity_2021-2023.xlsx"
 df_water = pd.read_excel(water_file_path, sheet_name="Sheet1")
 df_electricity = pd.read_excel(electricity_file_path, sheet_name="Sheet1")
 

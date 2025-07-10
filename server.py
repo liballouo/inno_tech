@@ -21,19 +21,21 @@ def handle_client(conn, addr, client_name):
             msg = data.decode()
             print(f"收到 {client_name} 訊息：{msg}")
 
-            # 根據來源分發訊息
             with lock:
                 if client_name == "B":
                     print(f"B 回傳資料: {msg}")
-                    # 將B的回傳資料放入佇列，給C
-                    b_to_c_queue.put(msg)
+                    # 立即轉發給C
+                    if "C" in clients:
+                        try:
+                            clients["C"].sendall(msg.encode('utf-8'))
+                            print(f"已將B的資料即時轉發給C: {msg}")
+                        except Exception as e:
+                            print(f"轉發給C失敗: {e}")
                 elif client_name == "A":
-                    # A 自己發的訊息給 B 和 C
                     for target in ["B", "C"]:
                         if target in clients:
                             clients[target].sendall(f"來自A: {msg}".encode())
                 elif client_name == "C":
-                    # C 傳來的訊息可忽略或自訂處理
                     pass
         except Exception as e:
             print(f"{client_name} 連線異常：{e}")

@@ -19,7 +19,7 @@ series = np.array([
 months = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]*3)
 
 # 啟動時先做一次預測
-predict_val = float(predict_custom_next(series, months, MODEL_PATH))
+predict_val = round(float(predict_custom_next(series, months, MODEL_PATH)), 2)
 print("已完成預測，預測值：", predict_val)
 
 HOST = '192.168.1.6'  # 換成A的IP

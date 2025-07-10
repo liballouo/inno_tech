@@ -25,7 +25,7 @@ data = {
     "months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]*3
 }
 
-HOST = '192.168.1.29'  # 換成你板子的 IP（可用 `ip a` 查）
+HOST = '10.7.78.14'  # 換成你板子的 IP（可用 `ip a` 查）
 PORT = 8787
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

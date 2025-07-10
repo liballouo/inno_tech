@@ -1,5 +1,7 @@
 import socket
 import threading
+import time
+import json
 
 # 儲存 client 連線
 clients = {}
@@ -46,6 +48,23 @@ def accept_clients(server_socket):
             clients[client_name] = conn
         threading.Thread(target=handle_client, args=(conn, addr, client_name), daemon=True).start()
 
+def periodic_send_to_B():
+    i = 0
+    while True:
+        time.sleep(5)
+        with lock:
+            if "B" in clients:
+                # 模擬資料
+                data = {"P1": 100 + i}
+                try:
+                    clients["B"].sendall(json.dumps(data).encode('utf-8'))
+                    print(f"已發送資料給B: {data}")
+                except Exception as e:
+                    print(f"發送給B失敗: {e}")
+            else:
+                print("B 尚未連線")
+        i += 1
+
 if __name__ == "__main__":
     HOST = "0.0.0.0"
     PORT = 5000
@@ -53,5 +72,8 @@ if __name__ == "__main__":
     server_socket.bind((HOST, PORT))
     server_socket.listen(5)
     print(f"伺服器啟動於 {HOST}:{PORT}，等待連線...")
+
+    # 啟動定時傳送資料給B的thread
+    threading.Thread(target=periodic_send_to_B, daemon=True).start()
 
     accept_clients(server_socket)

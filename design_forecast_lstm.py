@@ -55,7 +55,7 @@ class EnergyPredictorLSTM(nn.Module):
         out = self.fc(out[:, -1, :])
         return out
 
-def train_lstm(train_data, month_array, seq_length=12, epochs=100, show_loss_curve=True, model_name="predict_lstm"):
+def train_lstm(train_data, month_array, seq_length=12, epochs=100, show_loss_curve=False, model_name="predict_lstm"):
     # Normalize water usage
     scaler = MinMaxScaler()
     values_scaled = scaler.fit_transform(train_data.reshape(-1, 1))
@@ -141,22 +141,22 @@ def process_series_and_forecast(series, months, forecast_steps=12):
     return predictions
 
 if __name__ == "__main__":
-    water_file_path = "./train_data/Monthly_Water_2021-2023.xlsx"
+    # water_file_path = "./train_data/Monthly_Water_2021-2023.xlsx"
     electricity_file_path = "./train_data/Monthly_electricity_2021-2023.xlsx"
-    df_water = pd.read_excel(water_file_path, sheet_name="Sheet1")
+    # df_water = pd.read_excel(water_file_path, sheet_name="Sheet1")
     df_electricity = pd.read_excel(electricity_file_path, sheet_name="Sheet1")
 
-    water_columns = ['Total_Water(ML)']
+    # water_columns = ['Total_Water(ML)']
     electricity_columns = ['Total Electricity Consumption (kWh)']
     forecast_steps = 3  # 預測未來 3 個月
 
-    # 預測各區域
-    water_forecasts = {}
-    for col in water_columns:
-        series = df_water[col].dropna().values
-        valid_idx = df_water[col].dropna().index
-        months = df_water.loc[valid_idx, 'Month'].values
-        water_forecasts[col] = process_series_and_forecast(series, months, forecast_steps=forecast_steps)
+    # # 預測各區域
+    # water_forecasts = {}
+    # for col in water_columns:
+    #     series = df_water[col].dropna().values
+    #     valid_idx = df_water[col].dropna().index
+    #     months = df_water.loc[valid_idx, 'Month'].values
+    #     water_forecasts[col] = process_series_and_forecast(series, months, forecast_steps=forecast_steps)
 
     # 預測各辦公室
     electricity_forecasts = {}
@@ -167,8 +167,8 @@ if __name__ == "__main__":
         electricity_forecasts[col] = process_series_and_forecast(series, months, forecast_steps=forecast_steps)
 
     # 畫圖
-    plot_forecasts(df_water[water_columns], water_forecasts, "Water Usage Forecast (Next 3 Months)", date_df=df_water[['Year', 'Month']], forecast_steps=forecast_steps)
-    plot_forecasts(df_electricity[electricity_columns], electricity_forecasts, "Electricity Usage Forecast (Next 3 Months)", date_df=df_electricity[['Year', 'Month']], forecast_steps=forecast_steps)
+    # plot_forecasts(df_water[water_columns], water_forecasts, "Water Usage Forecast (Next 3 Months)", date_df=df_water[['Year', 'Month']], forecast_steps=forecast_steps)
+    # plot_forecasts(df_electricity[electricity_columns], electricity_forecasts, "Electricity Usage Forecast (Next 3 Months)", date_df=df_electricity[['Year', 'Month']], forecast_steps=forecast_steps)
 
     # =========  新增區塊：載入已儲存模型並預測下一個月  =========
 
@@ -203,27 +203,29 @@ if __name__ == "__main__":
         return next_val
 
     # ----------  路徑 & 欄位設定 ----------
-    water_model_path = "predict_lstm.pt"          # ← 依實際檔名修改
+    # water_model_path = "predict_lstm.pt"          # ← 依實際檔名修改
     elec_model_path  = "predict_lstm.pt"           # ← 依實際檔名修改
 
-    water_col = 'Total_Water(ML)'
+    # water_col = 'Total_Water(ML)'
     elec_col  = 'Total Electricity Consumption (kWh)'
 
     # ----------  準備資料 ----------
-    series_water = df_water[water_col].dropna().values
-    months_water = df_water.loc[df_water[water_col].dropna().index, 'Month'].values
+    # series_water = df_water[water_col].dropna().values
+    # months_water = df_water.loc[df_water[water_col].dropna().index, 'Month'].values
 
     series_elec = df_electricity[elec_col].dropna().values
     months_elec = df_electricity.loc[df_electricity[elec_col].dropna().index, 'Month'].values
+    print("series_elec: ", series_elec)
+    print("months_elec: ", months_elec)
 
     # ----------  預測 ----------
-    next_water = predict_next_month(series_water, months_water, water_model_path)
+    # next_water = predict_next_month(series_water, months_water, water_model_path)
     next_elec  = predict_next_month(series_elec, months_elec, elec_model_path)
 
     # ----------  輸出 ----------
-    print(f"🔹 本月用水量：{series_water[-1]:,.2f} ML")
+    # print(f"🔹 本月用水量：{series_water[-1]:,.2f} ML")
     print(f"🔹 本月用電量：{series_elec[-1]:,.2f} kWh")
-    print(f"🔹 下個月預估用水量：{next_water:,.2f} ML")
+    # print(f"🔹 下個月預估用水量：{next_water:,.2f} ML")
     print(f"🔹 下個月預估用電量：{next_elec:,.2f} kWh")
 
     # =========  LLM載入 =========
@@ -257,29 +259,29 @@ if __name__ == "__main__":
         return advice.strip()
 
     # ----------  計算趨勢 ----------
-    curr_water = series_water[-1]
+    # curr_water = series_water[-1]
     curr_elec  = series_elec[-1]
 
-    water_diff = next_water - curr_water
+    # water_diff = next_water - curr_water
     elec_diff  = next_elec  - curr_elec
 
-    water_pct = water_diff / curr_water * 100
+    # water_pct = water_diff / curr_water * 100
     elec_pct  = elec_diff  / curr_elec  * 100
 
-    trend_water = "上升" if water_diff > 1e-3 else "下降" if water_diff < -1e-3 else "持平"
+    # trend_water = "上升" if water_diff > 1e-3 else "下降" if water_diff < -1e-3 else "持平"
     trend_elec  = "上升" if elec_diff  > 1e-3 else "下降" if elec_diff  < -1e-3 else "持平"
 
     # ----------  輸出 ----------
     print("============ 用水 / 用電 預測概覽 ============")
-    print(f"🔹 本月用水量：{curr_water:,.2f} ML")
-    print(f"🔹 下月預估用水量：{next_water:,.2f} ML（{trend_water} {water_pct:+.1f}%）")
+    # print(f"🔹 本月用水量：{curr_water:,.2f} ML")
+    # print(f"🔹 下月預估用水量：{next_water:,.2f} ML（{trend_water} {water_pct:+.1f}%）")
     print(f"🔹 本月用電量：{curr_elec:,.2f} kWh")
     print(f"🔹 下月預估用電量：{next_elec:,.2f} kWh（{trend_elec} {elec_pct:+.1f}%）")
 
     # ----------  LLM 建議 ----------
     prompt = (
-        f"你是一位節能與節水顧問，請依據以下數據條列3點繁體中文建議。\n"
-        f"- 本月用水 {curr_water:.2f} ML，預估下月 {next_water:.2f} ML，{trend_water} {water_pct:+.1f}%\n"
+        f"你是一位節能顧問，請依據以下數據條列3點繁體中文建議。\n"
+        # f"- 本月用水 {curr_water:.2f} ML，預估下月 {next_water:.2f} ML，{trend_water} {water_pct:+.1f}%\n"
         f"- 本月用電 {curr_elec:.2f} kWh，預估下月 {next_elec:.2f} kWh，{trend_elec} {elec_pct:+.1f}%\n"
         f"可以從一些日常習慣與常見的電器使用方式來建議。"
     )
@@ -295,8 +297,8 @@ if __name__ == "__main__":
 
     # 將要儲存的欄位整理成 dict
     result_dict = {
-        "本月用水量": f"{curr_water:,.2f} ML",
-        "下月預估用水量": f"{next_water:,.2f} ML（{trend_water} {water_pct:+.1f}%）",
+        # "本月用水量": f"{curr_water:,.2f} ML",
+        # "下月預估用水量": f"{next_water:,.2f} ML（{trend_water} {water_pct:+.1f}%）",
         "本月用電量": f"{curr_elec:,.2f} kWh",
         "下月預估用電量": f"{next_elec:,.2f} kWh（{trend_elec} {elec_pct:+.1f}%）",
         "LLM建議": advice

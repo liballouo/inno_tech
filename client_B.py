@@ -40,6 +40,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             break
         try:
             req = json.loads(data.decode('utf-8'))
+            print("收到A資料：", req)
             resp = {"predict": predict_val}
             # 將A傳來的所有欄位都加進回傳
             resp.update(req)

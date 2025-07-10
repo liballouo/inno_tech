@@ -20,6 +20,7 @@ def handle_client(conn, addr, client_name):
             # 根據來源分發訊息
             with lock:
                 if client_name == "B":
+                    print(f"B 回傳資料: {msg}")
                     # B 傳來的訊息發給 C
                     if "C" in clients:
                         clients["C"].sendall(f"來自B: {msg}".encode())
@@ -53,8 +54,8 @@ def periodic_send_to_B():
     while True:
         time.sleep(5)
         with lock:
-            if "B" in clients:
-                # 模擬資料
+            # 必須 B、C 都連線才傳送
+            if "B" in clients and "C" in clients:
                 data = {"P1": 100 + i}
                 try:
                     clients["B"].sendall(json.dumps(data).encode('utf-8'))
@@ -62,7 +63,7 @@ def periodic_send_to_B():
                 except Exception as e:
                     print(f"發送給B失敗: {e}")
             else:
-                print("B 尚未連線")
+                print("等待B、C都連線中...")
         i += 1
 
 if __name__ == "__main__":

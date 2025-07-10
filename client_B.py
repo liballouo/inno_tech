@@ -30,21 +30,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.sendall(CLIENT_NAME.encode('utf-8'))
 
     while True:
-        data = b""
-        while True:
-            packet = s.recv(4096)
-            if not packet:
-                break
-            data += packet
-        if not data:
-            break
         try:
+            data = s.recv(4096)
+            if not data:
+                print("連線中斷")
+                break
             req = json.loads(data.decode('utf-8'))
             print("收到A資料：", req)
             resp = {"predict": predict_val}
-            # 將A傳來的所有欄位都加進回傳
             resp.update(req)
+            s.sendall(json.dumps(resp).encode('utf-8'))
+            print("已回傳：", resp)
         except Exception as e:
-            resp = {"error": str(e)}
-        s.sendall(json.dumps(resp).encode('utf-8'))
-        print("已回傳：", resp)
+            print("接收或處理資料時發生錯誤：", e)
+            break

@@ -7,11 +7,15 @@ import json
 clients = {}
 lock = threading.Lock()
 
+# 新增一個佇列用於B的回傳資料
+from queue import Queue
+b_to_c_queue = Queue()
+
 def handle_client(conn, addr, client_name):
     print(f"{client_name} 已連線：{addr}")
     while True:
         try:
-            data = conn.recv(1024)
+            data = conn.recv(4096)
             if not data:
                 break
             msg = data.decode()
@@ -21,9 +25,8 @@ def handle_client(conn, addr, client_name):
             with lock:
                 if client_name == "B":
                     print(f"B 回傳資料: {msg}")
-                    # B 傳來的訊息發給 C
-                    if "C" in clients:
-                        clients["C"].sendall(f"來自B: {msg}".encode())
+                    # 將B的回傳資料放入佇列，給C
+                    b_to_c_queue.put(msg)
                 elif client_name == "A":
                     # A 自己發的訊息給 B 和 C
                     for target in ["B", "C"]:
@@ -49,7 +52,7 @@ def accept_clients(server_socket):
             clients[client_name] = conn
         threading.Thread(target=handle_client, args=(conn, addr, client_name), daemon=True).start()
 
-def periodic_send_to_B():
+def periodic_send_to_B_and_forward_to_C():
     i = 0
     while True:
         time.sleep(5)
@@ -58,12 +61,23 @@ def periodic_send_to_B():
             if "B" in clients and "C" in clients:
                 data = {"P1": 100 + i}
                 try:
+                    # 傳送資料給B
                     clients["B"].sendall(json.dumps(data).encode('utf-8'))
                     print(f"已發送資料給B: {data}")
                 except Exception as e:
                     print(f"發送給B失敗: {e}")
             else:
                 print("等待B、C都連線中...")
+        # 檢查是否有B的回傳資料要給C
+        try:
+            while not b_to_c_queue.empty():
+                msg = b_to_c_queue.get()
+                with lock:
+                    if "C" in clients:
+                        clients["C"].sendall(msg.encode('utf-8'))
+                        print(f"已將B的資料轉發給C: {msg}")
+        except Exception as e:
+            print(f"轉發給C失敗: {e}")
         i += 1
 
 if __name__ == "__main__":
@@ -75,6 +89,6 @@ if __name__ == "__main__":
     print(f"伺服器啟動於 {HOST}:{PORT}，等待連線...")
 
     # 啟動定時傳送資料給B的thread
-    threading.Thread(target=periodic_send_to_B, daemon=True).start()
+    threading.Thread(target=periodic_send_to_B_and_forward_to_C, daemon=True).start()
 
     accept_clients(server_socket)

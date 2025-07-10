@@ -14,6 +14,9 @@
 import socket
 import json
 
+# 指定client name: B: LSTM預測板; C: 筆電
+CLIENT_NAME = "C"
+
 # 準備要傳送的資料
 data = {
     "series": [7458.12, 6569.6, 7717.07, 7384.67, 8225.05, 7948.97, 
@@ -25,11 +28,12 @@ data = {
     "months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]*3
 }
 
-HOST = '10.7.78.14'  # 換成你板子的 IP（可用 `ip a` 查）
-PORT = 8787
+HOST = '192.168.1.6'  # 換成你板子的 IP（可用 `ip a` 查）
+PORT = 5000
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
+    s.sendall(CLIENT_NAME.encode('utf-8'))
     s.sendall(json.dumps(data).encode('utf-8'))
     s.shutdown(socket.SHUT_WR)  # 告訴 server 資料已傳送完畢
     response = b""

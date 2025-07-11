@@ -47,8 +47,8 @@ def generate_advice(prompt, tokenizer=tokenizer, model=model, max_new_tokens=160
 
 # ----------  LLM 建議 ----------
 prompt = (
-    f"你是一位節能與節水顧問，請依據以下數據條列3點繁體中文建議。\n"
-    f"- 本月用水 {curr_water:.2f} ML，預估下月 {next_water:.2f} ML，{trend_water} {water_pct:+.1f}%\n"
+    f"你是一位節能顧問，請依據以下數據條列3點繁體中文建議。\n"
+    # f"- 本月用水 {curr_water:.2f} ML，預估下月 {next_water:.2f} ML，{trend_water} {water_pct:+.1f}%\n"
     f"- 本月用電 {curr_elec:.2f} kWh，預估下月 {next_elec:.2f} kWh，{trend_elec} {elec_pct:+.1f}%\n"
     f"可以從一些日常習慣與常見的電器使用方式來建議。"
 )

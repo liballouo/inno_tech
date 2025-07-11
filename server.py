@@ -113,23 +113,7 @@ def handle_client(conn, addr, client_name):
             print(f"收到 {client_name} 訊息：{msg}")
 
             with lock:
-                if client_name == "C":
-                    try:
-                        c_data = json.loads(msg)
-                        filtered = {k: c_data[k] for k in ["daily_p1", "daily_p2", "monthly_p1", "monthly_p2"] if k in c_data}
-                        # 讀取現有data.json，更新daily/monthly欄位
-                        if os.path.exists(DATA_PATH):
-                            with open(DATA_PATH, "r", encoding="utf-8") as f:
-                                data_json = json.load(f)
-                        else:
-                            data_json = {}
-                        data_json.update(filtered)
-                        with open(DATA_PATH, "w", encoding="utf-8") as f:
-                            json.dump(data_json, f, ensure_ascii=False)
-                        print(f"已更新data.json: {filtered}")
-                    except Exception as e:
-                        print(f"解析C資料失敗: {e}")
-                elif client_name == "B":
+                if client_name == "B":
                     print(f"B 回傳資料: {msg}")
                     last_b_returned.set()  # 標記B已回傳
                     try:
@@ -147,6 +131,23 @@ def handle_client(conn, addr, client_name):
                         print(f"已將B的預測資料寫入data.json: {predict_update}")
                     except Exception as e:
                         print(f"解析B資料失敗: {e}")
+                elif client_name == "C":
+                    try:
+                        c_data = json.loads(msg)
+                        filtered = {k: c_data[k] for k in ["daily_p1", "daily_p2", "monthly_p1", "monthly_p2"] if k in c_data}
+                        # 讀取現有data.json，更新daily/monthly欄位
+                        if os.path.exists(DATA_PATH):
+                            with open(DATA_PATH, "r", encoding="utf-8") as f:
+                                data_json = json.load(f)
+                        else:
+                            data_json = {}
+                        data_json.update(filtered)
+                        with open(DATA_PATH, "w", encoding="utf-8") as f:
+                            json.dump(data_json, f, ensure_ascii=False)
+                        print(f"已更新data.json: {filtered}")
+                    except Exception as e:
+                        print(f"解析C資料失敗: {e}")
+                
                 elif client_name == "A":
                     for target in ["B", "C"]:
                         if target in clients:

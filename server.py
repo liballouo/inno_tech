@@ -162,7 +162,7 @@ def handle_client(conn, addr, client_name):
 
 def datajson_to_B_sender():
     while True:
-        time.sleep(5)
+        time.sleep(0.5)
         with lock:
             if "B" in clients:
                 # 讀取data.json

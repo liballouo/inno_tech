@@ -3,6 +3,7 @@ import threading
 import time
 import json
 from queue import Queue
+import os
 
 # LLM相關import
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -33,6 +34,40 @@ model = AutoModelForCausalLM.from_pretrained(
 clients = {}
 lock = threading.Lock()
 b_to_c_queue = Queue()
+
+LLM_STATUS_PATH = "LLM_status.json"
+LLM_RESULT_PATH = "LLM_result.json"
+
+# 新增：定時檢查LLM_status.json並執行LLM建議
+
+def llm_status_watcher():
+    while True:
+        time.sleep(1)
+        try:
+            if not os.path.exists(LLM_STATUS_PATH):
+                continue
+            with open(LLM_STATUS_PATH, "r", encoding="utf-8") as f:
+                status_data = json.load(f)
+            status = status_data.get("status", "")
+            if status == "請生成":
+                # 先設為生成中
+                status_data["status"] = "生成中"
+                with open(LLM_STATUS_PATH, "w", encoding="utf-8") as f:
+                    json.dump(status_data, f, ensure_ascii=False)
+                # 這裡可根據實際需求設計 prompt，這裡用一個範例
+                prompt = status_data.get("prompt", "請給我一段節能建議")
+                advice = generate_advice(prompt, tokenizer, model)
+                # 寫入LLM_result.json
+                with open(LLM_RESULT_PATH, "w", encoding="utf-8") as f:
+                    json.dump({"LLM_advice": advice}, f, ensure_ascii=False)
+                # 設為生成完畢
+                status_data["status"] = "生成完畢"
+                with open(LLM_STATUS_PATH, "w", encoding="utf-8") as f:
+                    json.dump(status_data, f, ensure_ascii=False)
+                print("LLM建議已生成並寫入LLM_result.json")
+        except Exception as e:
+            print(f"LLM狀態檢查/生成時發生錯誤: {e}")
+
 
 def handle_client(conn, addr, client_name):
     print(f"{client_name} 已連線：{addr}")
@@ -95,14 +130,19 @@ def periodic_send_to_B_and_forward_to_C():
                         # 解析B的回傳資料，組LLM prompt
                         try:
                             b_data = json.loads(msg)
-                            cm1 = b_data.get("current_month_1")
-                            cm2 = b_data.get("current_month_2")
-                            p1 = b_data.get("predict_1")
-                            p2 = b_data.get("predict_2")
+                            # cm1 = b_data.get("current_month_1")
+                            # cm2 = b_data.get("current_month_2")
+                            daily_p1 = b_data.get("daily_p1")
+                            daily_p2 = b_data.get("daily_p2")
+                            monthly_p1 = b_data.get("monthly_p1")
+                            monthly_p2 = b_data.get("monthly_p2")
+                            predict_p1 = b_data.get("predict_1")
+                            predict_p2 = b_data.get("predict_2")
                             prompt = (
                                 f"你是一位節能顧問，請依據以下數據條列3點繁體中文建議。\n"
-                                f"- 本月用電1 {cm1} kWh，預估下月1 {p1} kWh\n"
-                                f"- 本月用電2 {cm2} kWh，預估下月2 {p2} kWh\n"
+                                # f"- 上個月用電1 {cm1} kWh，預估本月1 {p1} kWh\n"
+                                # f"- 上個月用電2 {cm2} kWh，預估本月2 {p2} kWh\n"
+                                f"本日累積用電 {daily_p1+daily_p2} kWh；本月累積用電 {monthly_p1+monthly_p2} kWh； 本日預測用電 {(predict_p1+predict_p2)/30} kWh； 本月預測用電 {predict_p1+predict_p2} kWh \n"
                                 f"可以從一些日常習慣與常見的電器使用方式來建議。"
                             )
                             advice = generate_advice(prompt, tokenizer, model)
@@ -124,5 +164,6 @@ if __name__ == "__main__":
     server_socket.listen(5)
     print(f"伺服器啟動於 {HOST}:{PORT}，等待連線...")
 
+    threading.Thread(target=llm_status_watcher, daemon=True).start()
     threading.Thread(target=periodic_send_to_B_and_forward_to_C, daemon=True).start()
     accept_clients(server_socket)

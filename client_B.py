@@ -19,9 +19,10 @@ series = np.array([
 months = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]*3)
 
 # 啟動時先做一次預測
-predict_val = float(predict_custom_next(series, months, MODEL_PATH))
+predict_val_1 = float(predict_custom_next(series, months, MODEL_PATH))
+predict_val_2 = float(predict_custom_next(series, months, MODEL_PATH)) * 1.05
 current_month = int(series[-1])
-print("已完成預測，預測值：", predict_val)
+print("已完成預測，預測值：", predict_val_1, predict_val_2)
 
 HOST = '192.168.1.6'  # 換成A的IP
 PORT = 5000
@@ -41,7 +42,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # 準備回傳資料
             resp = {
                 "current_month": current_month,
-                "predict": predict_val,
+                "predict_1": predict_val_1,
+                "predict_2": predict_val_2,
                 "P1": req.get("P1", None)
             }
             s.sendall(json.dumps(resp).encode('utf-8'))

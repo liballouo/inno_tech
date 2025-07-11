@@ -112,26 +112,47 @@ def handle_client(conn, addr, client_name):
 
             with lock:
                 if client_name == "C":
-                    # C 傳來即時資料，放入佇列給B
+                    # C 傳來即時資料，放入佇列給B，並更新data.json
                     try:
                         c_data = json.loads(msg)
                         # 僅保留需要的欄位
                         filtered = {k: c_data[k] for k in ["daily_p1", "daily_p2", "monthly_p1", "monthly_p2"] if k in c_data}
                         c_to_b_queue.put(json.dumps(filtered, ensure_ascii=False))
-                        print(f"已將C的即時資料放入佇列給B: {filtered}")
+                        # 讀取現有data.json，更新daily/monthly欄位
+                        if os.path.exists(DATA_PATH):
+                            with open(DATA_PATH, "r", encoding="utf-8") as f:
+                                data_json = json.load(f)
+                        else:
+                            data_json = {}
+                        data_json.update(filtered)
+                        with open(DATA_PATH, "w", encoding="utf-8") as f:
+                            json.dump(data_json, f, ensure_ascii=False)
+                        print(f"已將C的即時資料放入佇列給B並更新data.json: {filtered}")
                     except Exception as e:
                         print(f"解析C資料失敗: {e}")
                 elif client_name == "B":
-                    # B 回傳資料，放入佇列給C或後續LLM
+                    # B 回傳資料，放入佇列給C或後續LLM，並更新data.json的predict欄位
                     print(f"B 回傳資料: {msg}")
                     b_to_c_queue.put(msg)
+                    try:
+                        b_data = json.loads(msg)
+                        predict_update = {k: b_data[k] for k in ["predict_p1", "predict_p2"] if k in b_data}
+                        # 讀取現有data.json，更新predict欄位
+                        if os.path.exists(DATA_PATH):
+                            with open(DATA_PATH, "r", encoding="utf-8") as f:
+                                data_json = json.load(f)
+                        else:
+                            data_json = {}
+                        data_json.update(predict_update)
+                        with open(DATA_PATH, "w", encoding="utf-8") as f:
+                            json.dump(data_json, f, ensure_ascii=False)
+                        print(f"已將B的預測資料寫入data.json: {predict_update}")
+                    except Exception as e:
+                        print(f"解析B資料失敗: {e}")
                 elif client_name == "A":
                     for target in ["B", "C"]:
                         if target in clients:
                             clients[target].sendall(f"來自A: {msg}".encode())
-                # elif client_name == "C":
-                #     # 處理C傳來的即時資料
-                #     print(f"C 傳來即時資料: {msg}")
         except Exception as e:
             print(f"{client_name} 連線異常：{e}")
             break

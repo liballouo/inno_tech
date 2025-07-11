@@ -44,6 +44,12 @@ LLM_STATUS_PATH = "LLM_status.json"
 LLM_RESULT_PATH = "LLM_result.json"
 DATA_PATH = "data.json"
 
+# 啟動時先刪除三個檔案
+for path in [DATA_PATH, LLM_STATUS_PATH, LLM_RESULT_PATH]:
+    if os.path.exists(path):
+        os.remove(path)
+        print(f"已刪除檔案: {path}")
+
 # 啟動時自動建立檔案與初始值
 init_files = [
     (DATA_PATH, {"daily_p1": 0, "daily_p2": 0, "monthly_p1": 0, "monthly_p2": 0, "predict_p1": 0, "predict_p2": 0}),

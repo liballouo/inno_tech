@@ -15,7 +15,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         # 模擬即時資料
         data = {
             "daily_p1": 100 + i,
-            "dailt_p2": 200 + i,
+            "daily_p2": 200 + i,
             "monthly_p1": 1000 + i,
             "monthly_p2": 2000 + i
         }

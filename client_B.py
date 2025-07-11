@@ -48,7 +48,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 "predict_1": predict_val_1,
                 "predict_2": predict_val_2,
                 "daily_p1": req.get("daily_p1", None),
-                "dailt_p2": req.get("daily_p2", None),
+                "daily_p2": req.get("daily_p2", None),
                 "monthly_p1": req.get("monthly_p1", None),
                 "monthly_p2": req.get("monthly_p2", None)
             }

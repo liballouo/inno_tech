@@ -23,7 +23,7 @@ def handle_client(conn, addr, client_name):
 
             with lock:
                 if client_name == "B":
-                    print(f"B 回傳資料: {msg}")
+                    print(f"B 回傳資料: {msg}")  # 顯示B回傳資料
                     # 立即轉發給C
                     if "C" in clients:
                         try:

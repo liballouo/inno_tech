@@ -43,7 +43,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 print("連線中斷")
                 break
             msg = data.decode()
-            print("收到資料：", msg)
+            print("收到server資料：", msg)  # 顯示server傳來的資料
             try:
                 req = json.loads(msg)
                 # 解析資料

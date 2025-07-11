@@ -52,7 +52,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 "monthly_p1": req.get("monthly_p1", None),
                 "monthly_p2": req.get("monthly_p2", None)
             }
-            s.sendall(json.dumps(resp).encode('utf-8'))
+            s.sendall((json.dumps(resp) + '\n').encode('utf-8'))
             print("已回傳：", resp)
         except Exception as e:
             print("接收或處理資料時發生錯誤：", e)

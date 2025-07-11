@@ -2,13 +2,36 @@ import socket
 import threading
 import time
 import json
+from queue import Queue
 
-# 儲存 client 連線
+# LLM相關import
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+
+def generate_advice(prompt, tokenizer, model, max_new_tokens=160):
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.9
+        )
+    advice = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return advice.strip()
+
+# 載入LLM模型（只載入一次）
+model_name = "Qwen/Qwen1.5-0.5B"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    torch_dtype=torch.float16,
+    device_map="auto"
+)
+
 clients = {}
 lock = threading.Lock()
-
-# 新增一個佇列用於B的回傳資料
-from queue import Queue
 b_to_c_queue = Queue()
 
 def handle_client(conn, addr, client_name):
@@ -21,20 +44,18 @@ def handle_client(conn, addr, client_name):
             msg = data.decode()
             print(f"收到 {client_name} 訊息：{msg}")
 
-            # 根據來源分發訊息
             with lock:
                 if client_name == "B":
                     print(f"B 回傳資料: {msg}")
                     # 將B的回傳資料放入佇列，給C
                     b_to_c_queue.put(msg)
                 elif client_name == "A":
-                    # A 自己發的訊息給 B 和 C
                     for target in ["B", "C"]:
                         if target in clients:
                             clients[target].sendall(f"來自A: {msg}".encode())
                 elif client_name == "C":
-                    # C 傳來的訊息可忽略或自訂處理
-                    pass
+                    # 處理C傳來的即時資料
+                    print(f"C 傳來即時資料: {msg}")
         except Exception as e:
             print(f"{client_name} 連線異常：{e}")
             break
@@ -46,7 +67,6 @@ def handle_client(conn, addr, client_name):
 def accept_clients(server_socket):
     while True:
         conn, addr = server_socket.accept()
-        # 連線後，先接收 client 名稱
         client_name = conn.recv(1024).decode()
         with lock:
             clients[client_name] = conn
@@ -57,11 +77,9 @@ def periodic_send_to_B_and_forward_to_C():
     while True:
         time.sleep(5)
         with lock:
-            # 必須 B、C 都連線才傳送
             if "B" in clients and "C" in clients:
-                data = {"P1": 100 + i}
+                data = {"P1": 100 + i, "P2": 200 + i}
                 try:
-                    # 傳送資料給B
                     clients["B"].sendall(json.dumps(data).encode('utf-8'))
                     print(f"已發送資料給B: {data}")
                 except Exception as e:
@@ -74,8 +92,26 @@ def periodic_send_to_B_and_forward_to_C():
                 msg = b_to_c_queue.get()
                 with lock:
                     if "C" in clients:
-                        clients["C"].sendall(msg.encode('utf-8'))
-                        print(f"已將B的資料轉發給C: {msg}")
+                        # 解析B的回傳資料，組LLM prompt
+                        try:
+                            b_data = json.loads(msg)
+                            cm1 = b_data.get("current_month_1")
+                            cm2 = b_data.get("current_month_2")
+                            p1 = b_data.get("predict_1")
+                            p2 = b_data.get("predict_2")
+                            prompt = (
+                                f"你是一位節能顧問，請依據以下數據條列3點繁體中文建議。\n"
+                                f"- 本月用電1 {cm1} kWh，預估下月1 {p1} kWh\n"
+                                f"- 本月用電2 {cm2} kWh，預估下月2 {p2} kWh\n"
+                                f"可以從一些日常習慣與常見的電器使用方式來建議。"
+                            )
+                            advice = generate_advice(prompt, tokenizer, model)
+                            b_data["llm_advice"] = advice
+                            send_msg = json.dumps(b_data, ensure_ascii=False)
+                        except Exception as e:
+                            send_msg = json.dumps({"error": f"LLM處理失敗: {e}", "raw": msg}, ensure_ascii=False)
+                        clients["C"].sendall(send_msg.encode('utf-8'))
+                        print(f"已將B的資料與LLM建議轉發給C: {send_msg}")
         except Exception as e:
             print(f"轉發給C失敗: {e}")
         i += 1
@@ -88,7 +124,5 @@ if __name__ == "__main__":
     server_socket.listen(5)
     print(f"伺服器啟動於 {HOST}:{PORT}，等待連線...")
 
-    # 啟動定時傳送資料給B的thread
     threading.Thread(target=periodic_send_to_B_and_forward_to_C, daemon=True).start()
-
     accept_clients(server_socket)

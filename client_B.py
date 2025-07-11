@@ -32,28 +32,29 @@ PORT = 5000
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
     s.sendall(CLIENT_NAME.encode('utf-8'))
-
+    buffer = ""
     while True:
-        try:
-            data = s.recv(4096)
-            if not data:
-                print("連線中斷")
-                break
-            req = json.loads(data.decode('utf-8'))
-            print("收到A資料：", req)
-            # 準備回傳資料
-            resp = {
-                # "current_month_1": current_month_1,
-                # "current_month_2": current_month_2,
-                "predict_1": predict_val_1,
-                "predict_2": predict_val_2,
-                "daily_p1": req.get("daily_p1", None),
-                "daily_p2": req.get("daily_p2", None),
-                "monthly_p1": req.get("monthly_p1", None),
-                "monthly_p2": req.get("monthly_p2", None)
-            }
-            s.sendall((json.dumps(resp) + '\n').encode('utf-8'))
-            print("已回傳：", resp)
-        except Exception as e:
-            print("接收或處理資料時發生錯誤：", e)
+        data = s.recv(4096)
+        if not data:
+            print("連線中斷")
             break
+        buffer += data.decode()
+        while '\n' in buffer:
+            line, buffer = buffer.split('\n', 1)
+            if not line.strip():
+                continue
+            try:
+                req = json.loads(line)
+                print("收到A資料：", req)
+                resp = {
+                        "predict_1": predict_val_1,
+                        "predict_2": predict_val_2,
+                        "daily_p1": req.get("daily_p1", None),
+                        "daily_p2": req.get("daily_p2", None),
+                        "monthly_p1": req.get("monthly_p1", None),
+                        "monthly_p2": req.get("monthly_p2", None)
+                }
+                s.sendall((json.dumps(resp) + '\n').encode('utf-8'))
+                print("已回傳：", resp)
+            except Exception as e:
+                print("解析或處理資料時發生錯誤：", e)

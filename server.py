@@ -88,10 +88,7 @@ def llm_status_watcher():
             print(f"LLM狀態檢查/生成時發生錯誤: {e}")
 
 
-waiting_b_response = False
-
 def handle_client(conn, addr, client_name):
-    global waiting_b_response
     print(f"{client_name} 已連線：{addr}")
     while True:
         try:
@@ -113,12 +110,16 @@ def handle_client(conn, addr, client_name):
                     except Exception as e:
                         print(f"解析C資料失敗: {e}")
                 elif client_name == "B":
-                    # 收到 B 回傳資料
-                    waiting_b_response = False
                     # B 回傳資料，放入佇列給C或後續LLM
                     print(f"B 回傳資料: {msg}")
                     b_to_c_queue.put(msg)
-
+                elif client_name == "A":
+                    for target in ["B", "C"]:
+                        if target in clients:
+                            clients[target].sendall(f"來自A: {msg}".encode())
+                # elif client_name == "C":
+                #     # 處理C傳來的即時資料
+                #     print(f"C 傳來即時資料: {msg}")
         except Exception as e:
             print(f"{client_name} 連線異常：{e}")
             break
@@ -136,15 +137,54 @@ def accept_clients(server_socket):
         threading.Thread(target=handle_client, args=(conn, addr, client_name), daemon=True).start()
 
 def c_to_b_forwarder():
-    global waiting_b_response
+    # 將C的即時資料轉發給B
     while True:
-        time.sleep(0.1)
+        time.sleep(0.5)
         with lock:
-            if "B" in clients and not waiting_b_response and not c_to_b_queue.empty():
-                msg = c_to_b_queue.get()
-                clients["B"].sendall((msg + '\\n').encode('utf-8'))
-                print(f"已將C的即時資料轉發給B: {msg}")
-                waiting_b_response = True
+            if "B" in clients:
+                try:
+                    while not c_to_b_queue.empty():
+                        msg = c_to_b_queue.get()
+                        clients["B"].sendall(msg.encode('utf-8'))
+                        print(f"已將C的即時資料轉發給B: {msg}")
+                except Exception as e:
+                    print(f"發送給B失敗: {e}")
+            else:
+                print("等待B、C都連線中...")
+        # # 檢查是否有B的回傳資料要給C
+        # try:
+        #     while not b_to_c_queue.empty():
+        #         msg = b_to_c_queue.get()
+        #         with lock:
+        #             if "C" in clients:
+        #                 # 解析B的回傳資料，組LLM prompt
+        #                 try:
+        #                     b_data = json.loads(msg)
+        #                     # cm1 = b_data.get("current_month_1")
+        #                     # cm2 = b_data.get("current_month_2")
+        #                     daily_p1 = b_data.get("daily_p1")
+        #                     daily_p2 = b_data.get("daily_p2")
+        #                     monthly_p1 = b_data.get("monthly_p1")
+        #                     monthly_p2 = b_data.get("monthly_p2")
+        #                     predict_p1 = b_data.get("predict_1")
+        #                     predict_p2 = b_data.get("predict_2")
+        #                     prompt = (
+        #                         f"你是一位節能顧問，請依據以下數據條列3點繁體中文建議。\n"
+        #                         # f"- 上個月用電1 {cm1} kWh，預估本月1 {p1} kWh\n"
+        #                         # f"- 上個月用電2 {cm2} kWh，預估本月2 {p2} kWh\n"
+        #                         f"本日累積用電 {daily_p1+daily_p2} kWh；本月累積用電 {monthly_p1+monthly_p2} kWh； 本日預測用電 {(predict_p1+predict_p2)/30} kWh； 本月預測用電 {predict_p1+predict_p2} kWh \n"
+        #                         f"可以從一些日常習慣與常見的電器使用方式來建議。"
+        #                     )
+        #                     advice = generate_advice(prompt, tokenizer, model)
+        #                     b_data["llm_advice"] = advice
+        #                     send_msg = json.dumps(b_data, ensure_ascii=False)
+        #                 except Exception as e:
+        #                     send_msg = json.dumps({"error": f"LLM處理失敗: {e}", "raw": msg}, ensure_ascii=False)
+        #                 clients["C"].sendall(send_msg.encode('utf-8'))
+        #                 print(f"已將B的資料與LLM建議轉發給C: {send_msg}")
+        # except Exception as e:
+        #     print(f"轉發給C失敗: {e}")
+        # i += 1
 
 if __name__ == "__main__":
     HOST = "0.0.0.0"

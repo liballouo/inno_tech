@@ -20,6 +20,7 @@ months = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]*3)
 
 # 啟動時先做一次預測
 predict_val = float(predict_custom_next(series, months, MODEL_PATH))
+current_month = int(months[-1])
 print("已完成預測，預測值：", predict_val)
 
 HOST = '192.168.1.6'  # 換成A的IP
@@ -37,8 +38,12 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 break
             req = json.loads(data.decode('utf-8'))
             print("收到A資料：", req)
-            resp = {"predict": predict_val}
-            resp.update(req)
+            # 準備回傳資料
+            resp = {
+                "current_month": current_month,
+                "predict": predict_val,
+                "P1": req.get("P1", None)
+            }
             s.sendall(json.dumps(resp).encode('utf-8'))
             print("已回傳：", resp)
         except Exception as e:

@@ -76,26 +76,26 @@ def llm_status_watcher():
                     continue
                 with open(DATA_PATH, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                daily_p1 = data.get("daily_p1", 0)
-                daily_p2 = data.get("daily_p2", 0)
-                monthly_p1 = data.get("monthly_p1", 0)
-                monthly_p2 = data.get("monthly_p2", 0)
-                predict_p1 = data.get("predict_p1", 0)
-                predict_p2 = data.get("predict_p2", 0)
-                prompt = (
-                    f"你是一位節能顧問，請依據以下數據條列3點繁體中文建議。\n"
-                    f"本日累積用電 {daily_p1+daily_p2} kWh；本月累積用電 {monthly_p1+monthly_p2} kWh； 本日預測用電 {(predict_p1+predict_p2)/30} kWh； 本月預測用電 {predict_p1+predict_p2} kWh \n"
-                    f"可以從一些日常習慣與常見的電器使用方式來建議。"
-                )
-                advice = generate_advice(prompt, tokenizer, model)
-                # 寫入LLM_result.json
-                with open(LLM_RESULT_PATH, "w", encoding="utf-8") as f:
-                    json.dump({"LLM_advice": advice}, f, ensure_ascii=False)
-                # 設為生成完畢
-                status_data["status"] = "生成完畢"
-                with open(LLM_STATUS_PATH, "w", encoding="utf-8") as f:
-                    json.dump(status_data, f, ensure_ascii=False)
-                print("LLM建議已生成並寫入LLM_result.json")
+                    daily_p1 = data.get("daily_p1", 0)
+                    daily_p2 = data.get("daily_p2", 0)
+                    monthly_p1 = data.get("monthly_p1", 0)
+                    monthly_p2 = data.get("monthly_p2", 0)
+                    predict_p1 = data.get("predict_p1", 0)
+                    predict_p2 = data.get("predict_p2", 0)
+                    prompt = (
+                        f"你是一位節能顧問，請依據以下數據條列3點繁體中文建議。\n"
+                        f"本日累積用電 {daily_p1+daily_p2} kWh；本月累積用電 {monthly_p1+monthly_p2} kWh； 本日預測用電 {(predict_p1+predict_p2)/30} kWh； 本月預測用電 {predict_p1+predict_p2} kWh \n"
+                        f"可以從一些日常習慣與常見的電器使用方式來建議。"
+                    )
+                    advice = generate_advice(prompt, tokenizer, model)
+                    # 寫入LLM_result.json
+                    with open(LLM_RESULT_PATH, "w", encoding="utf-8") as f:
+                        json.dump({"LLM_advice": advice}, f, ensure_ascii=False)
+                    # 設為生成完畢
+                    status_data["status"] = "生成完畢"
+                    with open(LLM_STATUS_PATH, "w", encoding="utf-8") as f:
+                        json.dump(status_data, f, ensure_ascii=False)
+                    print("LLM建議已生成並寫入LLM_result.json")
         except Exception as e:
             print(f"LLM狀態檢查/生成時發生錯誤: {e}")
 

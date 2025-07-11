@@ -14,8 +14,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     while True:
         # 模擬即時資料
         data = {
-            "P1": 100 + i,
-            "P2": 200 + i
+            "daily_p1": 100 + i,
+            "dailt_p2": 200 + i,
+            "monthly_p1": 1000 + i,
+            "monthly_p2": 2000 + i
         }
         s.sendall(json.dumps(data).encode('utf-8'))
         print("已傳送資料：", data)

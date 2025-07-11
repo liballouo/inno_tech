@@ -176,7 +176,7 @@ def datajson_to_B_sender():
                     # 檢查四個值都不是0
                     if all([daily_p1, daily_p2, monthly_p1, monthly_p2]):
                         # 只有收到B的回傳值後才傳送
-                        if last_b_returned.is_set():
+                        if last_b_returned.is_set() or (data_json.get("predict_p1") == 0 and data_json.get("predict_p2") == 0):
                             send_data = {
                                 "daily_p1": daily_p1,
                                 "daily_p2": daily_p2,

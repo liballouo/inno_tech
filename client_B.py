@@ -19,8 +19,7 @@ series = np.array([
 months = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]*3)
 
 # 啟動時先做一次預測
-predict_val = round(float(predict_custom_next(series, months, MODEL_PATH)), 2)     
-current_month_val = float(series[-1])
+predict_val = float(predict_custom_next(series, months, MODEL_PATH))
 print("已完成預測，預測值：", predict_val)
 
 HOST = '192.168.1.6'  # 換成A的IP
@@ -31,24 +30,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.sendall(CLIENT_NAME.encode('utf-8'))
 
     while True:
-        data = b""
-        while True:
-            packet = s.recv(4096)
-            if not packet:
-                break
-            data += packet
-        if not data:
-            break
         try:
+            data = s.recv(4096)
+            if not data:
+                print("連線中斷")
+                break
             req = json.loads(data.decode('utf-8'))
-            print("收到A資料：", req)  # 顯示A傳來的資料
-            p1 = req.get("P1", None)
-            resp = {
-                "current_month": current_month_val,
-                "predict": predict_val,
-                "P1": p1
-            }
+            print("收到A資料：", req)
+            resp = {"predict": predict_val}
+            resp.update(req)
+            s.sendall(json.dumps(resp).encode('utf-8'))
+            print("已回傳：", resp)
         except Exception as e:
-            resp = {"error": str(e)}
-        s.sendall(json.dumps(resp).encode('utf-8'))
-        print("已回傳：", resp)
+            print("接收或處理資料時發生錯誤：", e)
+            break

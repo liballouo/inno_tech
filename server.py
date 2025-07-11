@@ -42,6 +42,18 @@ LLM_STATUS_PATH = "LLM_status.json"
 LLM_RESULT_PATH = "LLM_result.json"
 DATA_PATH = "data.json"
 
+# 啟動時自動建立檔案與初始值
+init_files = [
+    (DATA_PATH, {"daily_p1": 0, "daily_p2": 0, "monthly_p1": 0, "monthly_p2": 0, "predict_p1": 0, "predict_p2": 0}),
+    (LLM_STATUS_PATH, {"status": "生成完畢"}),
+    (LLM_RESULT_PATH, {"LLM_advice": "尚未產生建議"})
+]
+for path, default in init_files:
+    if not os.path.exists(path):
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(default, f, ensure_ascii=False)
+        print(f"已建立初始檔案: {path}")
+
 # 新增：定時檢查LLM_status.json並執行LLM建議
 
 def llm_status_watcher():

@@ -101,39 +101,38 @@ def handle_client(conn, addr, client_name):
                 line, buffer = buffer.split('\n', 1)
                 if not line.strip():
                     continue
-                msg_json = json.loads(line)
-                # 處理msg_json
+                try:
+                    msg_json = json.loads(line)
+                except Exception as e:
+                    print(f"解析JSON失敗: {e}")
+                    continue
                 print(f"收到 {client_name} 訊息：{msg_json}")
 
-            with lock:
-                if client_name == "C":
-                    # C 傳來即時資料，放入佇列給B
-                    try:
-                        c_data = json.loads(msg_json)
-                        # 僅保留需要的欄位
-                        filtered = {k: c_data[k] for k in ["daily_p1", "daily_p2", "monthly_p1", "monthly_p2"] if k in c_data}
-                        c_to_b_queue.put(json.dumps(filtered, ensure_ascii=False))
-                        print(f"已將C的即時資料放入佇列給B: {filtered}")
-                    except Exception as e:
-                        print(f"解析C資料失敗: {e}")
-                elif client_name == "B":
-                    # B 回傳資料，放入佇列給C或後續LLM
-                    print(f"B 回傳資料: {msg_json}")
-                    b_to_c_queue.put(msg_json)
-                    # 新增：將B回傳資料寫入data.json
-                    try:
-                        with open("data.json", "w", encoding="utf-8") as f:
-                            f.write(msg_json)
-                        print("已將B回傳資料寫入data.json")
-                    except Exception as e:
-                        print(f"寫入data.json失敗: {e}")
-                elif client_name == "A":
-                    for target in ["B", "C"]:
-                        if target in clients:
-                            clients[target].sendall(f"來自A: {msg}".encode())
-                # elif client_name == "C":
-                #     # 處理C傳來的即時資料
-                #     print(f"C 傳來即時資料: {msg}")
+                with lock:
+                    if client_name == "C":
+                        # C 傳來即時資料，放入佇列給B
+                        try:
+                            # 僅保留需要的欄位
+                            filtered = {k: msg_json[k] for k in ["daily_p1", "daily_p2", "monthly_p1", "monthly_p2"] if k in msg_json}
+                            c_to_b_queue.put(json.dumps(filtered, ensure_ascii=False))
+                            print(f"已將C的即時資料放入佇列給B: {filtered}")
+                        except Exception as e:
+                            print(f"解析C資料失敗: {e}")
+                    elif client_name == "B":
+                        # B 回傳資料，放入佇列給C或後續LLM
+                        print(f"B 回傳資料: {msg_json}")
+                        b_to_c_queue.put(json.dumps(msg_json, ensure_ascii=False))
+                        # 新增：將B回傳資料寫入data.json
+                        try:
+                            with open("data.json", "w", encoding="utf-8") as f:
+                                json.dump(msg_json, f, ensure_ascii=False)
+                            print("已將B回傳資料寫入data.json")
+                        except Exception as e:
+                            print(f"寫入data.json失敗: {e}")
+                    elif client_name == "A":
+                        for target in ["B", "C"]:
+                            if target in clients:
+                                clients[target].sendall(f"來自A: {line}".encode())
         except Exception as e:
             print(f"{client_name} 連線異常：{e}")
             break

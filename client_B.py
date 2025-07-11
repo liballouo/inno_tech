@@ -47,8 +47,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 "current_month_2": current_month_2,
                 "predict_1": predict_val_1,
                 "predict_2": predict_val_2,
-                "P1": req.get("P1", None),
-                "P2": req.get("P2", None)
+                "daily_p1": req.get("daily_p1", None),
+                "dailt_p2": req.get("daily_p2", None),
+                "monthly_p1": req.get("monthly_p1", None),
+                "monthly_p2": req.get("monthly_p2", None)
             }
             s.sendall(json.dumps(resp).encode('utf-8'))
             print("已回傳：", resp)

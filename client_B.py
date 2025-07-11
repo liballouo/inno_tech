@@ -26,7 +26,7 @@ current_month_2 = float(series[-1]) * 1.05
 
 print("已完成預測，預測值：", predict_val_1, predict_val_2)
 
-HOST = '192.168.1.6'  # 換成A的IP
+HOST = '192.168.137.1'  # 換成筆電的IP
 PORT = 5000
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

@@ -3,7 +3,7 @@ import json
 import time
 
 CLIENT_NAME = "C"
-HOST = '192.168.1.6'  # 換成A的IP
+HOST = '192.168.137.1'  # 換成筆電的IP
 PORT = 5000
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

@@ -38,6 +38,8 @@ c_to_b_queue = Queue()
 # B->C的回傳資料佇列（如需後續LLM處理可保留）
 b_to_c_queue = Queue()
 
+last_b_returned = threading.Event()  # 用於同步B回傳
+
 LLM_STATUS_PATH = "LLM_status.json"
 LLM_RESULT_PATH = "LLM_result.json"
 DATA_PATH = "data.json"
@@ -112,12 +114,9 @@ def handle_client(conn, addr, client_name):
 
             with lock:
                 if client_name == "C":
-                    # C 傳來即時資料，放入佇列給B，並更新data.json
                     try:
                         c_data = json.loads(msg)
-                        # 僅保留需要的欄位
                         filtered = {k: c_data[k] for k in ["daily_p1", "daily_p2", "monthly_p1", "monthly_p2"] if k in c_data}
-                        c_to_b_queue.put(json.dumps(filtered, ensure_ascii=False))
                         # 讀取現有data.json，更新daily/monthly欄位
                         if os.path.exists(DATA_PATH):
                             with open(DATA_PATH, "r", encoding="utf-8") as f:
@@ -127,13 +126,12 @@ def handle_client(conn, addr, client_name):
                         data_json.update(filtered)
                         with open(DATA_PATH, "w", encoding="utf-8") as f:
                             json.dump(data_json, f, ensure_ascii=False)
-                        print(f"已將C的即時資料放入佇列給B並更新data.json: {filtered}")
+                        print(f"已更新data.json: {filtered}")
                     except Exception as e:
                         print(f"解析C資料失敗: {e}")
                 elif client_name == "B":
-                    # B 回傳資料，放入佇列給C或後續LLM，並更新data.json的predict欄位
                     print(f"B 回傳資料: {msg}")
-                    b_to_c_queue.put(msg)
+                    last_b_returned.set()  # 標記B已回傳
                     try:
                         b_data = json.loads(msg)
                         predict_update = {k: b_data[k] for k in ["predict_p1", "predict_p2"] if k in b_data}
@@ -161,6 +159,36 @@ def handle_client(conn, addr, client_name):
     conn.close()
     print(f"{client_name} 離線")
 
+def datajson_to_B_sender():
+    while True:
+        time.sleep(0.5)
+        with lock:
+            if "B" in clients:
+                # 讀取data.json
+                if os.path.exists(DATA_PATH):
+                    with open(DATA_PATH, "r", encoding="utf-8") as f:
+                        data_json = json.load(f)
+                    daily_p1 = data_json.get("daily_p1", 0)
+                    daily_p2 = data_json.get("daily_p2", 0)
+                    monthly_p1 = data_json.get("monthly_p1", 0)
+                    monthly_p2 = data_json.get("monthly_p2", 0)
+                    # 檢查四個值都不是0
+                    if all([daily_p1, daily_p2, monthly_p1, monthly_p2]):
+                        # 只有收到B的回傳值後才傳送
+                        if last_b_returned.is_set():
+                            send_data = {
+                                "daily_p1": daily_p1,
+                                "daily_p2": daily_p2,
+                                "monthly_p1": monthly_p1,
+                                "monthly_p2": monthly_p2
+                            }
+                            try:
+                                clients["B"].sendall(json.dumps(send_data).encode('utf-8'))
+                                print(f"已將data.json資料傳給B: {send_data}")
+                                last_b_returned.clear()  # 等待下次B回傳
+                            except Exception as e:
+                                print(f"傳送資料給B失敗: {e}")
+
 def accept_clients(server_socket):
     while True:
         conn, addr = server_socket.accept()
@@ -168,56 +196,6 @@ def accept_clients(server_socket):
         with lock:
             clients[client_name] = conn
         threading.Thread(target=handle_client, args=(conn, addr, client_name), daemon=True).start()
-
-def c_to_b_forwarder():
-    # 將C的即時資料轉發給B
-    while True:
-        time.sleep(0.5)
-        with lock:
-            if "B" in clients:
-                try:
-                    while not c_to_b_queue.empty():
-                        msg = c_to_b_queue.get()
-                        clients["B"].sendall(msg.encode('utf-8'))
-                        print(f"已將C的即時資料轉發給B: {msg}")
-                except Exception as e:
-                    print(f"發送給B失敗: {e}")
-            else:
-                print("等待B、C都連線中...")
-        # # 檢查是否有B的回傳資料要給C
-        # try:
-        #     while not b_to_c_queue.empty():
-        #         msg = b_to_c_queue.get()
-        #         with lock:
-        #             if "C" in clients:
-        #                 # 解析B的回傳資料，組LLM prompt
-        #                 try:
-        #                     b_data = json.loads(msg)
-        #                     # cm1 = b_data.get("current_month_1")
-        #                     # cm2 = b_data.get("current_month_2")
-        #                     daily_p1 = b_data.get("daily_p1")
-        #                     daily_p2 = b_data.get("daily_p2")
-        #                     monthly_p1 = b_data.get("monthly_p1")
-        #                     monthly_p2 = b_data.get("monthly_p2")
-        #                     predict_p1 = b_data.get("predict_1")
-        #                     predict_p2 = b_data.get("predict_2")
-        #                     prompt = (
-        #                         f"你是一位節能顧問，請依據以下數據條列3點繁體中文建議。\n"
-        #                         # f"- 上個月用電1 {cm1} kWh，預估本月1 {p1} kWh\n"
-        #                         # f"- 上個月用電2 {cm2} kWh，預估本月2 {p2} kWh\n"
-        #                         f"本日累積用電 {daily_p1+daily_p2} kWh；本月累積用電 {monthly_p1+monthly_p2} kWh； 本日預測用電 {(predict_p1+predict_p2)/30} kWh； 本月預測用電 {predict_p1+predict_p2} kWh \n"
-        #                         f"可以從一些日常習慣與常見的電器使用方式來建議。"
-        #                     )
-        #                     advice = generate_advice(prompt, tokenizer, model)
-        #                     b_data["llm_advice"] = advice
-        #                     send_msg = json.dumps(b_data, ensure_ascii=False)
-        #                 except Exception as e:
-        #                     send_msg = json.dumps({"error": f"LLM處理失敗: {e}", "raw": msg}, ensure_ascii=False)
-        #                 clients["C"].sendall(send_msg.encode('utf-8'))
-        #                 print(f"已將B的資料與LLM建議轉發給C: {send_msg}")
-        # except Exception as e:
-        #     print(f"轉發給C失敗: {e}")
-        # i += 1
 
 if __name__ == "__main__":
     HOST = "0.0.0.0"
@@ -228,5 +206,5 @@ if __name__ == "__main__":
     print(f"伺服器啟動於 {HOST}:{PORT}，等待連線...")
 
     threading.Thread(target=llm_status_watcher, daemon=True).start()
-    threading.Thread(target=c_to_b_forwarder, daemon=True).start()
+    threading.Thread(target=datajson_to_B_sender, daemon=True).start()
     accept_clients(server_socket)

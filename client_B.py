@@ -43,8 +43,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             print("收到A資料：", req)
             # 準備回傳資料
             resp = {
-                "predict_1": predict_val_1,
-                "predict_2": predict_val_2,
+                "predict_p1": predict_val_1,
+                "predict_p2": predict_val_2,
                 # "daily_p1": req.get("daily_p1", None),
                 # "daily_p2": req.get("daily_p2", None),
                 # "monthly_p1": req.get("monthly_p1", None),
